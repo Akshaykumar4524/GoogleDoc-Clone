@@ -3,7 +3,8 @@ import 'quill/dist/quill.snow.css';
 import { useEffect, useState } from 'react';
 import {Box} from '@mui/material';
 import styled from '@emotion/styled';
-import {io} from 'socket.io-client'
+import {io} from 'socket.io-client';
+import { useParams } from 'react-router-dom';
 
 const Component=styled.div`
 background:#F5F5F5
@@ -32,10 +33,13 @@ const Editor=()=>{
 
     const[socket,setSocket]=useState();  
     const[quill,setQuill]=useState();
+    const {id}=useParams()
     useEffect(()=>{
         const quillServer=new Quill('#container',{modules: {
             toolbar: toolbarOptions
           },theme:'snow'})
+        quillServer.disable()
+        quillServer.setText("document Loading...")  
           setQuill(quillServer)
     },[])
     useEffect(()=>{
@@ -69,6 +73,26 @@ const Editor=()=>{
         }
         
     },[quill,socket])
+    useEffect(()=>{
+        if(socket===null || quill ===null) return
+        socket && socket.once('load-document',document=>{
+            quill && quill.setContents(document);
+            quill && quill.enable()
+        })
+        socket && socket.emit('get-document',id)
+    },[quill,socket,id])
+
+    useEffect(()=>{
+        if(socket===null || quill ===null) return
+
+        const interval = setInterval(()=>{
+            socket && socket.emit('save-document',quill.getContents())
+        },2000)
+
+        return ()=>{
+            clearInterval(interval)
+        }
+    },[socket,quill])
     return(
         <Component>
             <Box className='container' id='container'></Box>
